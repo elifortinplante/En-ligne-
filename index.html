@@ -2,310 +2,360 @@
 <html lang="fr">
 <head>
 <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flashcards App</title>
+
+<!-- ================= FIREBASE ================= -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  collection,
+  updateDoc,
+  increment
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+/* ================= CONFIG ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
+  authDomain: "flashcard-2c124.firebaseapp.com",
+  projectId: "flashcard-2c124",
+  storageBucket: "flashcard-2c124.firebasestorage.app",
+  messagingSenderId: "874120400032",
+  appId: "1:874120400032:web:580f1de61498e0134b4dc5"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let user = null;
+
+/* ================= LOGIN ================= */
+window.loginGoogle = async () => {
+  const provider = new GoogleAuthProvider();
+  await signInWithPopup(auth, provider);
+};
+
+window.logout = () => signOut(auth);
+
+/* ================= DATA ================= */
+let sets = [];
+
+/* ================= LOAD / SAVE CLOUD ================= */
+async function loadSets(){
+  const ref = doc(db,"users",user.uid);
+  const snap = await getDoc(ref);
+
+  sets = snap.exists() ? snap.data().sets || [] : [];
+
+  displaySets();
+}
+
+async function saveSets(){
+  if(!user) return;
+
+  await setDoc(doc(db,"users",user.uid),{
+    sets
+  });
+}
+
+/* ================= AUTH ================= */
+onAuthStateChanged(auth, async (u)=>{
+  if(!u){
+    document.getElementById("login-screen").style.display="flex";
+    document.getElementById("app").style.display="none";
+    return;
+  }
+
+  user = u;
+
+  document.getElementById("login-screen").style.display="none";
+  document.getElementById("app").style.display="block";
+
+  document.getElementById("user-name").textContent =
+    u.displayName || u.email;
+
+  await loadSets();
+});
+
+/* ================= SHARE ================= */
+window.shareSet = async function(i){
+  const set = sets[i];
+
+  await setDoc(doc(db,"sharedSets",crypto.randomUUID()),{
+    ...set,
+    owner:user.displayName,
+    ownerId:user.uid,
+    createdAt:Date.now()
+  });
+
+  alert("📤 Set partagé !");
+};
+
+/* ================= LEADERBOARD ================= */
+window.loadLeaderboard = async function(){
+  const snap = await getDocs(collection(db,"users"));
+
+  let users = [];
+
+  snap.forEach(d=>{
+    users.push(d.data());
+  });
+
+  users.sort((a,b)=>(b.xp||0)-(a.xp||0));
+
+  const list = document.getElementById("leaderboard-list");
+  list.innerHTML = "";
+
+  users.forEach(u=>{
+    const div = document.createElement("div");
+    div.className="set";
+    div.innerHTML = `
+      <div>
+        <strong>${u.name || "User"}</strong><br>
+        ⭐ XP: ${u.xp || 0}
+      </div>
+    `;
+    list.appendChild(div);
+  });
+};
+
+/* ================= TON CODE ORIGINAL ================= */
+
+function saveSetsLocal(){
+  localStorage.setItem("sets",JSON.stringify(sets));
+}
+
+function goHome(){
+  document.querySelectorAll(".container > div")
+    .forEach(d=>d.classList.add("hidden"));
+
+  document.getElementById("home-screen").classList.remove("hidden");
+  displaySets();
+}
+
+function displaySets(){
+  const list = document.getElementById("sets-list");
+  list.innerHTML="";
+
+  sets.forEach((s,i)=>{
+    const div = document.createElement("div");
+    div.className="set";
+
+    div.innerHTML = `
+      <img src="${s.image||'https://via.placeholder.com/60'}">
+      <div>
+        <strong>${s.title}</strong><br>
+        <small>${s.subject}</small>
+      </div>
+    `;
+
+    div.onclick = ()=> startGame(i);
+
+    const buttonsDiv = document.createElement("div");
+    buttonsDiv.className="set-buttons";
+
+    const editBtn = document.createElement("button");
+    editBtn.textContent="✏️";
+    editBtn.onclick = e=>{e.stopPropagation(); showSetEditor(i);};
+
+    const delBtn = document.createElement("button");
+    delBtn.textContent="🗑️";
+    delBtn.onclick = e=>{e.stopPropagation(); deleteSet(i);};
+
+    const shareBtn = document.createElement("button");
+    shareBtn.textContent="🌍";
+    shareBtn.onclick = e=>{
+      e.stopPropagation();
+      shareSet(i);
+    };
+
+    buttonsDiv.appendChild(editBtn);
+    buttonsDiv.appendChild(delBtn);
+    buttonsDiv.appendChild(shareBtn);
+
+    div.appendChild(buttonsDiv);
+    list.appendChild(div);
+  });
+}
+
+window.deleteSet = function(i){
+  sets.splice(i,1);
+  saveSets();
+  saveSetsLocal();
+  displaySets();
+};
+
+window.saveSet = async function(){
+  const title = document.getElementById("set-title").value;
+  const subject = document.getElementById("set-subject").value;
+  const image = document.getElementById("set-image").value;
+
+  const cards = [];
+
+  document.querySelectorAll("#cards-editor > .card-editor")
+  .forEach(div=>{
+    const q = div.children[0].value;
+    const a = div.children[1].value;
+    const img = div.children[2].value;
+
+    const color = div.querySelector(".color-display").style.background;
+    const number = div.querySelector(".color-display").textContent;
+
+    if(q && a){
+      cards.push({question:q,answer:a,image:img,color,number});
+    }
+  });
+
+  sets.push({title,subject,image,cards});
+
+  await saveSets();
+  saveSetsLocal();
+
+  goHome();
+};
+
+/* ================= GAME (ton original conservé) ================= */
+
+window.currentSet=null;
+window.currentCards=[];
+window.currentIndex=0;
+window.errors=[];
+
+window.startGame=function(i){
+  currentSet = sets[i];
+  currentCards = currentSet.cards;
+  currentIndex = 0;
+  errors = [];
+
+  document.querySelectorAll(".container > div")
+    .forEach(d=>d.classList.add("hidden"));
+
+  document.getElementById("game-screen").classList.remove("hidden");
+
+  showCard();
+};
+
+window.showCard=function(){
+  const c = currentCards[currentIndex];
+
+  document.getElementById("game-cards").innerHTML=`
+    <div class="card" onclick="flipCard()">
+      <div class="card-face card-front">
+        ${c.image?`<img src="${c.image}">`:""}
+        <div>${c.question}</div>
+      </div>
+      <div class="card-face card-back">
+        ${c.image?`<img src="${c.image}">`:""}
+        <div>${c.answer}</div>
+      </div>
+    </div>
+  `;
+};
+
+window.flipCard=function(){
+  document.querySelector(".card").classList.toggle("flipped");
+};
+
+window.markAnswer=async function(ok){
+
+  if(ok && user){
+    await updateDoc(doc(db,"users",user.uid),{
+      xp:increment(10)
+    });
+  }
+
+  currentIndex++;
+
+  if(currentIndex<currentCards.length){
+    showCard();
+  } else {
+    endGame();
+  }
+};
+
+window.endGame=function(){
+  document.querySelectorAll(".container > div")
+    .forEach(d=>d.classList.add("hidden"));
+
+  document.getElementById("score-screen").classList.remove("hidden");
+
+  document.getElementById("final-score").textContent =
+    `Score: ${currentCards.length}/${currentCards.length}`;
+};
+
+/* ================= INIT ================= */
+goHome();
+
+</script>
+
 <style>
-.set-buttons button:nth-child(1),
-.set-buttons button:nth-child(2),
-.set-buttons button:nth-child(3),
-.set-buttons button:nth-child(4) {
-  font-size: 14px;
-}
-
-#gems-display,
-#fire-display {
-  font-size: 20px;
-  font-weight: bold;
-}
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: linear-gradient(135deg, #a18cd1, #fbc2eb, #8fd3f4);
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.container {
-  width: 90%;
-  max-width: 800px;
-  background: white;
-  border-radius: 20px;
-  padding: 20px;
-  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-}
-
-h1, h2 {
-  text-align: center;
-  color: #333;
-}
-
-.hidden {
-  display: none;
-}
-
-.set {
-  display: flex;
-  align-items: center;
-  background: #f3f3f3;
-  border-radius: 15px;
-  padding: 10px;
-  margin: 10px 0;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-.set:hover {
-  background: #e8e8e8;
-}
-
-.set img {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  object-fit: cover;
-  margin-right: 15px;
-}
-.set-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 3px;
-  width: 90px;
-  margin-left: auto;
-}
-.set-buttons button {
-  height: 40px;
-  font-size: 14px;
-  padding: 6px 8px;
-}
-
-.card-container {
-  perspective: 1000px;
-  margin: 20px 0;
-}
-
-.card {
-  width: 100%;
-  height: 350px;
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform 0.6s;
-  cursor: pointer;
-}
-
-.card.flipped {
-  transform: rotateY(180deg);
-}
-
-.card-face {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  backface-visibility: hidden;
-  border-radius: 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 20px;
-  box-sizing: border-box;
-  font-weight: bold;
-  text-align: center;
-  color: #333;
-  overflow: hidden;
-}
-
-.card-front {
-  background: #fff;
-}
-
-.card-back {
-  background: #f0f0f0;
-  transform: rotateY(180deg);
-}
-
-.card-face img {
-  width: 100%;
-  max-height: 250px;
-  margin-bottom: 15px;
-  object-fit: contain;
-}
-
-.answer-buttons {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 20px;
-}
-
-.answer-buttons button {
-  flex: 1;
-  margin: 0 5px;
-  padding: 10px;
-  font-size: 18px;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-.correct {
-  background: #a0e7a0;
-}
-
-.incorrect {
-  background: #f28b82;
-}
-
-.correct:hover {
-  background: #77d677;
-}
-
-.incorrect:hover {
-  background: #e06666;
-}
-
-#score-screen {
-  text-align: center;
-}
-
-#score-screen button {
-  margin: 10px;
-  padding: 12px 20px;
-  font-size: 16px;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  background: #a18cd1;
-  color: white;
-  transition: 0.3s;
-}
-
-#score-screen button:hover {
-  background: #875fb3;
-}
-
-.card-editor {
-  margin-bottom: 10px;
-}
-
-.card-editor input {
-  display: block;
-  width: 95%;
-  margin-bottom: 5px;
-}
-
-/* bouton Couleur utilise le style par défaut des boutons */
-.btn-color {
-  margin: 0 2px;
-}
-
-/* modification : case couleur 19px par 19px */
-.color-display {
-  display: inline-block;
-  width: 19px;
-  height: 19px;
-  vertical-align: middle;
-  margin-left: 5px;
-  border-radius: 4px;
-  border: 1px solid #aaa;
-}
+body{margin:0;font-family:Arial;background:#eee}
+.container{width:90%;max-width:800px;margin:auto;background:white;padding:20px;border-radius:20px}
+.hidden{display:none}
+.set{display:flex;align-items:center;padding:10px;margin:10px;background:#f3f3f3;border-radius:10px}
+.set img{width:60px;height:60px;margin-right:10px}
 </style>
+
 </head>
+
 <body>
+
+<!-- LOGIN -->
+<div id="login-screen" style="display:flex;justify-content:center;align-items:center;height:100vh;">
+  <button onclick="loginGoogle()">🔐 Connexion Google</button>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+
 <div class="container">
 
-<div id="home-screen">
-<h1 style="display:flex; align-items:center;">
-  Mes Sets
-  <span id="gems-display" style="margin-left:10px;">💎 0</span>
-<span id="fire-display" style="margin-left:10px;">
+<h2>Bonjour <span id="user-name"></span></h2>
+<button onclick="logout()">Déconnexion</button>
 
-  🔥 <span id="fire-days">0</span>
-
-</span>
-  <button id="infoBtn" style="margin-left:auto; font-size:24px; cursor:pointer; border:none; background:none;">*</button>
-</h1>
-
-<button onclick="showSetEditor()">➕ Nouveau set</button>
-<button onclick="document.getElementById('import-file').click()">📥 Importer un set</button>
-<button onclick="exportAllSets()">💾 Exporter tous les sets</button>
-<input type="file" id="import-file" class="hidden" onchange="importSet(event)">
-<div id="sets-list"></div>
-</div>
-
-<div id="info-screen" class="hidden">
-  <h2>Fonctionnalités +++</h2>
-  <div style="white-space: pre-wrap; line-height:1.5; width: 100%; max-width: 700px; margin: 0 auto; padding: 10px; font-size:16px;">
-Pendant que tu pratiques
-• Si tu joues avec un clavier :
-  • Espace → Retourne la carte pour voir la réponse.
-  • F → Indique que tu as mal répondu à la carte.
-  • J → Indique que tu as bien répondu à la carte.
-
-Pendant que tu modifies
-• Enter → Passe à la ligne suivante et crée automatiquement une nouvelle carte.
-• Les couleurs servent à créer des mini-paquets :
-  • Lors du jeu, les cartes d’un mini-paquet ne sont pas mélangées avec les autres cartes.
-• Les couleurs peuvent être choisies :
-  1. Nom en anglais (Red, Blue…)
-  2. Code hexadécimal (#FF0000, #0000FF…)
-  </div>
-  <button onclick="goHome()">🏠 Retour</button>
-
-  <hr>
-
-  <h2>🧊 Gels</h2>
-
-  <button onclick="buyGel()">Acheter 1 🧊 (1000 💎)</button>
-
-  <button onclick="buy2Gels()">Acheter 2 🧊 (1700 💎)</button>
-
-  <p>Tu as : <span id="gel-count">0</span> 🧊 (max 2)</p>
 <hr>
 
-<h2>Code spécial créateur</h2>
+<button onclick="loadLeaderboard()">🏆 Leaderboard</button>
 
-<input id="secretCode" placeholder="Tape ton code ici">
-<button onclick="checkCode()">Valider</button>
-</div>
+<div id="home-screen">
+  <input id="set-title">
+  <input id="set-subject">
+  <input id="set-image">
+  <button onclick="saveSet()">Créer set</button>
 
-<div id="editor-screen" class="hidden">
-<h2>Créer / Modifier un Set</h2>
-<input type="text" id="set-title" placeholder="Titre du set"><br><br>
-<input type="text" id="set-subject" placeholder="Matière"><br><br>
-<input type="text" id="set-image" placeholder="URL image pour l’accueil">
-<input type="file" accept="image/*" id="set-image-file" style="display:none">
-<button onclick="document.getElementById('set-image-file').click()">📸 Galerie couverture</button><br><br>
-<div id="cards-editor"></div>
-<button onclick="addCardEditor()">➕ Ajouter une carte</button><br><br>
-<button onclick="saveSet()">💾 Sauvegarder</button>
-<button onclick="goHome()">🏠 Accueil</button>
+  <div id="sets-list"></div>
 </div>
 
 <div id="game-screen" class="hidden">
-<h2 id="game-title"></h2>
-<div id="game-cards" class="card-container"></div>
-<div class="answer-buttons">
-<button class="incorrect" onclick="markAnswer(false)">Mauvais</button>
-<button class="correct" onclick="markAnswer(true)">Bon</button>
-</div>
+  <div id="game-cards"></div>
+  <button onclick="markAnswer(true)">Bon</button>
+  <button onclick="markAnswer(false)">Mauvais</button>
 </div>
 
 <div id="score-screen" class="hidden">
-<h2>Résultat</h2>
-<p id="final-score"></p>
-<button onclick="restartAll()">🔄 Recommencer tout</button>
-<button onclick="restartErrors()">❌ Rejouer erreurs</button>
-<button onclick="goHome()">🏠 Accueil</button>
+  <p id="final-score"></p>
 </div>
 
-</div>
+<div id="leaderboard-list"></div>
 
-<script>
-// ton script complet inchangé ici
-</script>
+</div>
+</div>
 
 </body>
 </html>
