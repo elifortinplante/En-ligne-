@@ -6,98 +6,102 @@
 
   <style>
     body { font-family: Arial; text-align: center; }
-    input { padding: 10px; margin: 5px; }
-    button { padding: 10px; margin: 5px; }
+    input, button { padding: 10px; margin: 5px; }
+    #appPage { display: none; }
   </style>
 </head>
+
 <body>
 
+<!-- 🔐 PAGE LOGIN -->
+<div id="loginPage">
   <h2>Connexion</h2>
 
   <input type="email" id="email" placeholder="Email"><br>
   <input type="password" id="password" placeholder="Mot de passe"><br>
 
-  <button onclick="signUp()">Créer compte</button>
   <button onclick="login()">Se connecter</button>
+  <button onclick="signup()">Créer compte</button>
 
-  <p id="status"></p>
+  <p id="msg"></p>
+</div>
 
-  <hr>
+<!-- 📱 PAGE APP -->
+<div id="appPage">
+  <h2>App principale</h2>
 
-  <h2>Mon texte</h2>
+  <p id="status">Chargement...</p>
 
-  <input type="text" id="textInput" placeholder="Écris quelque chose">
-  <button onclick="saveText()">Enregistrer</button>
-
-  <p id="output"></p>
-
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-
-    // 🔥 TA CONFIG FIREBASE
-    const firebaseConfig = {
-      apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
-      authDomain: "flashcard-2c124.firebaseapp.com",
-      projectId: "flashcard-2c124",
-      storageBucket: "flashcard-2c124.firebasestorage.app",
-      messagingSenderId: "874120400032",
-      appId: "1:874120400032:web:580f1de61498e0134b4dc5"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-
-    let docRef;
-
-    // 👤 Créer compte
-    window.signUp = async function () {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      await createUserWithEmailAndPassword(auth, email, password);
-    };
-
-    // 🔐 Connexion
-    window.login = async function () {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-      await signInWithEmailAndPassword(auth, email, password);
-    };
-
-    // 🚪 Déconnexion
-    window.logout = async function () {
-      await signOut(auth);
-      document.getElementById("status").textContent = "Déconnecté";
-      document.getElementById("output").textContent = "";
-    };
-
-    // 👀 État utilisateur
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        document.getElementById("status").textContent = "Connecté : " + user.email;
-
-        docRef = doc(db, "users", user.uid);
-
-        onSnapshot(docRef, (docSnap) => {
-          if (docSnap.exists()) {
-            document.getElementById("output").textContent = docSnap.data().contenu;
-          }
-        });
-      }
-    });
-
-    // 💾 Enregistrer texte
-    window.saveText = async function () {
-      const text = document.getElementById("textInput").value;
-      await setDoc(docRef, { contenu: text });
-      document.getElementById("textInput").value = "";
-    };
-  </script>
-
-  <br><br>
   <button onclick="logout()">Se déconnecter</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
+  authDomain: "flashcard-2c124.firebaseapp.com",
+  projectId: "flashcard-2c124",
+  storageBucket: "flashcard-2c124.firebasestorage.app",
+  messagingSenderId: "874120400032",
+  appId: "1:874120400032:web:580f1de61498e0134b4dc5"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+// 🔐 LOGIN
+window.login = async function () {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (e) {
+    document.getElementById("msg").textContent = e.message;
+  }
+};
+
+// 👤 SIGNUP
+window.signup = async function () {
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  try {
+    await createUserWithEmailAndPassword(auth, email, password);
+  } catch (e) {
+    document.getElementById("msg").textContent = e.message;
+  }
+};
+
+// 👀 DETECTE SI CONNECTÉ
+onAuthStateChanged(auth, (user) => {
+  if (user) {
+    // afficher app
+    document.getElementById("loginPage").style.display = "none";
+    document.getElementById("appPage").style.display = "block";
+
+    document.getElementById("status").textContent =
+      "Connecté : " + user.email;
+  } else {
+    // retour login
+    document.getElementById("loginPage").style.display = "block";
+    document.getElementById("appPage").style.display = "none";
+  }
+});
+
+// 🚪 LOGOUT
+window.logout = async function () {
+  await signOut(auth);
+};
+</script>
 
 </body>
 </html>
