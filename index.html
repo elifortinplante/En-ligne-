@@ -1,106 +1,310 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>App Firebase</title>
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flashcards App</title>
+<style>
+.set-buttons button:nth-child(1),
+.set-buttons button:nth-child(2),
+.set-buttons button:nth-child(3),
+.set-buttons button:nth-child(4) {
+  font-size: 14px;
+}
 
-  <style>
-    body { font-family: Arial; text-align: center; }
-    input, button { padding: 10px; margin: 5px; }
-    #appPage { display: none; }
-  </style>
+#gems-display,
+#fire-display {
+  font-size: 20px;
+  font-weight: bold;
+}
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #a18cd1, #fbc2eb, #8fd3f4);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.container {
+  width: 90%;
+  max-width: 800px;
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+
+h1, h2 {
+  text-align: center;
+  color: #333;
+}
+
+.hidden {
+  display: none;
+}
+
+.set {
+  display: flex;
+  align-items: center;
+  background: #f3f3f3;
+  border-radius: 15px;
+  padding: 10px;
+  margin: 10px 0;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.set:hover {
+  background: #e8e8e8;
+}
+
+.set img {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  object-fit: cover;
+  margin-right: 15px;
+}
+.set-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+  width: 90px;
+  margin-left: auto;
+}
+.set-buttons button {
+  height: 40px;
+  font-size: 14px;
+  padding: 6px 8px;
+}
+
+.card-container {
+  perspective: 1000px;
+  margin: 20px 0;
+}
+
+.card {
+  width: 100%;
+  height: 350px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.6s;
+  cursor: pointer;
+}
+
+.card.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  box-sizing: border-box;
+  font-weight: bold;
+  text-align: center;
+  color: #333;
+  overflow: hidden;
+}
+
+.card-front {
+  background: #fff;
+}
+
+.card-back {
+  background: #f0f0f0;
+  transform: rotateY(180deg);
+}
+
+.card-face img {
+  width: 100%;
+  max-height: 250px;
+  margin-bottom: 15px;
+  object-fit: contain;
+}
+
+.answer-buttons {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.answer-buttons button {
+  flex: 1;
+  margin: 0 5px;
+  padding: 10px;
+  font-size: 18px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.correct {
+  background: #a0e7a0;
+}
+
+.incorrect {
+  background: #f28b82;
+}
+
+.correct:hover {
+  background: #77d677;
+}
+
+.incorrect:hover {
+  background: #e06666;
+}
+
+#score-screen {
+  text-align: center;
+}
+
+#score-screen button {
+  margin: 10px;
+  padding: 12px 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  background: #a18cd1;
+  color: white;
+  transition: 0.3s;
+}
+
+#score-screen button:hover {
+  background: #875fb3;
+}
+
+.card-editor {
+  margin-bottom: 10px;
+}
+
+.card-editor input {
+  display: block;
+  width: 95%;
+  margin-bottom: 5px;
+}
+
+/* bouton Couleur utilise le style par défaut des boutons */
+.btn-color {
+  margin: 0 2px;
+}
+
+/* modification : case couleur 19px par 19px */
+.color-display {
+  display: inline-block;
+  width: 19px;
+  height: 19px;
+  vertical-align: middle;
+  margin-left: 5px;
+  border-radius: 4px;
+  border: 1px solid #aaa;
+}
+</style>
 </head>
-
 <body>
+<div class="container">
 
-<!-- 🔐 PAGE LOGIN -->
-<div id="loginPage">
-  <h2>Connexion</h2>
+<div id="home-screen">
+<h1 style="display:flex; align-items:center;">
+  Mes Sets
+  <span id="gems-display" style="margin-left:10px;">💎 0</span>
+<span id="fire-display" style="margin-left:10px;">
 
-  <input type="email" id="email" placeholder="Email"><br>
-  <input type="password" id="password" placeholder="Mot de passe"><br>
+  🔥 <span id="fire-days">0</span>
 
-  <button onclick="login()">Se connecter</button>
-  <button onclick="signup()">Créer compte</button>
+</span>
+  <button id="infoBtn" style="margin-left:auto; font-size:24px; cursor:pointer; border:none; background:none;">*</button>
+</h1>
 
-  <p id="msg"></p>
+<button onclick="showSetEditor()">➕ Nouveau set</button>
+<button onclick="document.getElementById('import-file').click()">📥 Importer un set</button>
+<button onclick="exportAllSets()">💾 Exporter tous les sets</button>
+<input type="file" id="import-file" class="hidden" onchange="importSet(event)">
+<div id="sets-list"></div>
 </div>
 
-<!-- 📱 PAGE APP -->
-<div id="appPage">
-  <h2>App principale</h2>
+<div id="info-screen" class="hidden">
+  <h2>Fonctionnalités +++</h2>
+  <div style="white-space: pre-wrap; line-height:1.5; width: 100%; max-width: 700px; margin: 0 auto; padding: 10px; font-size:16px;">
+Pendant que tu pratiques
+• Si tu joues avec un clavier :
+  • Espace → Retourne la carte pour voir la réponse.
+  • F → Indique que tu as mal répondu à la carte.
+  • J → Indique que tu as bien répondu à la carte.
 
-  <p id="status">Chargement...</p>
+Pendant que tu modifies
+• Enter → Passe à la ligne suivante et crée automatiquement une nouvelle carte.
+• Les couleurs servent à créer des mini-paquets :
+  • Lors du jeu, les cartes d’un mini-paquet ne sont pas mélangées avec les autres cartes.
+• Les couleurs peuvent être choisies :
+  1. Nom en anglais (Red, Blue…)
+  2. Code hexadécimal (#FF0000, #0000FF…)
+  </div>
+  <button onclick="goHome()">🏠 Retour</button>
 
-  <button onclick="logout()">Se déconnecter</button>
+  <hr>
+
+  <h2>🧊 Gels</h2>
+
+  <button onclick="buyGel()">Acheter 1 🧊 (1000 💎)</button>
+
+  <button onclick="buy2Gels()">Acheter 2 🧊 (1700 💎)</button>
+
+  <p>Tu as : <span id="gel-count">0</span> 🧊 (max 2)</p>
+<hr>
+
+<h2>Code spécial créateur</h2>
+
+<input id="secretCode" placeholder="Tape ton code ici">
+<button onclick="checkCode()">Valider</button>
 </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import {
-  getAuth,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+<div id="editor-screen" class="hidden">
+<h2>Créer / Modifier un Set</h2>
+<input type="text" id="set-title" placeholder="Titre du set"><br><br>
+<input type="text" id="set-subject" placeholder="Matière"><br><br>
+<input type="text" id="set-image" placeholder="URL image pour l’accueil">
+<input type="file" accept="image/*" id="set-image-file" style="display:none">
+<button onclick="document.getElementById('set-image-file').click()">📸 Galerie couverture</button><br><br>
+<div id="cards-editor"></div>
+<button onclick="addCardEditor()">➕ Ajouter une carte</button><br><br>
+<button onclick="saveSet()">💾 Sauvegarder</button>
+<button onclick="goHome()">🏠 Accueil</button>
+</div>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
-  authDomain: "flashcard-2c124.firebaseapp.com",
-  projectId: "flashcard-2c124",
-  storageBucket: "flashcard-2c124.firebasestorage.app",
-  messagingSenderId: "874120400032",
-  appId: "1:874120400032:web:580f1de61498e0134b4dc5"
-};
+<div id="game-screen" class="hidden">
+<h2 id="game-title"></h2>
+<div id="game-cards" class="card-container"></div>
+<div class="answer-buttons">
+<button class="incorrect" onclick="markAnswer(false)">Mauvais</button>
+<button class="correct" onclick="markAnswer(true)">Bon</button>
+</div>
+</div>
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+<div id="score-screen" class="hidden">
+<h2>Résultat</h2>
+<p id="final-score"></p>
+<button onclick="restartAll()">🔄 Recommencer tout</button>
+<button onclick="restartErrors()">❌ Rejouer erreurs</button>
+<button onclick="goHome()">🏠 Accueil</button>
+</div>
 
-// 🔐 LOGIN
-window.login = async function () {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
+</div>
 
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-  } catch (e) {
-    document.getElementById("msg").textContent = e.message;
-  }
-};
-
-// 👤 SIGNUP
-window.signup = async function () {
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-
-  try {
-    await createUserWithEmailAndPassword(auth, email, password);
-  } catch (e) {
-    document.getElementById("msg").textContent = e.message;
-  }
-};
-
-// 👀 DETECTE SI CONNECTÉ
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    // afficher app
-    document.getElementById("loginPage").style.display = "none";
-    document.getElementById("appPage").style.display = "block";
-
-    document.getElementById("status").textContent =
-      "Connecté : " + user.email;
-  } else {
-    // retour login
-    document.getElementById("loginPage").style.display = "block";
-    document.getElementById("appPage").style.display = "none";
-  }
-});
-
-// 🚪 LOGOUT
-window.logout = async function () {
-  await signOut(auth);
-};
+<script>
+// ton script complet inchangé ici
 </script>
 
 </body>
