@@ -2,50 +2,102 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Test Firebase</title>
+  <title>App Firebase</title>
+
+  <style>
+    body { font-family: Arial; text-align: center; }
+    input { padding: 10px; margin: 5px; }
+    button { padding: 10px; margin: 5px; }
+  </style>
 </head>
 <body>
 
-  <h2>Mon texte partagé</h2>
+  <h2>Connexion</h2>
+
+  <input type="email" id="email" placeholder="Email"><br>
+  <input type="password" id="password" placeholder="Mot de passe"><br>
+
+  <button onclick="signUp()">Créer compte</button>
+  <button onclick="login()">Se connecter</button>
+
+  <p id="status"></p>
+
+  <hr>
+
+  <h2>Mon texte</h2>
 
   <input type="text" id="textInput" placeholder="Écris quelque chose">
   <button onclick="saveText()">Enregistrer</button>
 
   <p id="output"></p>
 
-  <!-- Firebase -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-    // 🔥 CONFIG (à remplacer avec TON Firebase)
+    // 🔥 TA CONFIG FIREBASE
     const firebaseConfig = {
       apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
-  authDomain: "flashcard-2c124.firebaseapp.com",
-  projectId: "flashcard-2c124",
-  storageBucket: "flashcard-2c124.firebasestorage.app",
-  messagingSenderId: "874120400032",
-  appId: "1:874120400032:web:580f1de61498e0134b4dc5"
+      authDomain: "flashcard-2c124.firebaseapp.com",
+      projectId: "flashcard-2c124",
+      storageBucket: "flashcard-2c124.firebasestorage.app",
+      messagingSenderId: "874120400032",
+      appId: "1:874120400032:web:580f1de61498e0134b4dc5"
     };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const auth = getAuth(app);
 
-    const docRef = doc(db, "test", "monTexte");
+    let docRef;
+
+    // 👤 Créer compte
+    window.signUp = async function () {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      await createUserWithEmailAndPassword(auth, email, password);
+    };
+
+    // 🔐 Connexion
+    window.login = async function () {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      await signInWithEmailAndPassword(auth, email, password);
+    };
+
+    // 🚪 Déconnexion
+    window.logout = async function () {
+      await signOut(auth);
+      document.getElementById("status").textContent = "Déconnecté";
+      document.getElementById("output").textContent = "";
+    };
+
+    // 👀 État utilisateur
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        document.getElementById("status").textContent = "Connecté : " + user.email;
+
+        docRef = doc(db, "users", user.uid);
+
+        onSnapshot(docRef, (docSnap) => {
+          if (docSnap.exists()) {
+            document.getElementById("output").textContent = docSnap.data().contenu;
+          }
+        });
+      }
+    });
 
     // 💾 Enregistrer texte
     window.saveText = async function () {
       const text = document.getElementById("textInput").value;
       await setDoc(docRef, { contenu: text });
+      document.getElementById("textInput").value = "";
     };
-
-    // 🔄 Lire en temps réel
-    onSnapshot(docRef, (docSnap) => {
-      if (docSnap.exists()) {
-        document.getElementById("output").textContent = docSnap.data().contenu;
-      }
-    });
   </script>
+
+  <br><br>
+  <button onclick="logout()">Se déconnecter</button>
 
 </body>
 </html>
