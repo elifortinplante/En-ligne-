@@ -1,14 +1,15 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
-
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Flashcards App</title>
 
-<!-- ================= FIREBASE ================= -->
+<script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
+
+<!-- Firebase (modular CDN) -->
 <script type="module">
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
 import {
   getAuth,
@@ -23,13 +24,11 @@ import {
   doc,
   setDoc,
   getDoc,
-  getDocs,
   collection,
-  updateDoc,
-  increment
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-/* ================= CONFIG ================= */
+/* ================= FIREBASE CONFIG ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
   authDomain: "flashcard-2c124.firebaseapp.com",
@@ -42,320 +41,184 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const provider = new GoogleAuthProvider();
 
+/* ================= USER ================= */
 let user = null;
 
 /* ================= LOGIN ================= */
-window.loginGoogle = async () => {
-  const provider = new GoogleAuthProvider();
-  await signInWithPopup(auth, provider);
+window.loginGoogle = async function () {
+  try {
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    alert("Erreur connexion Google");
+    console.log(e);
+  }
 };
 
-window.logout = () => signOut(auth);
+window.logout = async function () {
+  await signOut(auth);
+};
 
-/* ================= DATA ================= */
-let sets = [];
-
-/* ================= LOAD / SAVE CLOUD ================= */
-async function loadSets(){
-  const ref = doc(db,"users",user.uid);
-  const snap = await getDoc(ref);
-
-  sets = snap.exists() ? snap.data().sets || [] : [];
-
-  displaySets();
-}
-
-async function saveSets(){
-  if(!user) return;
-
-  await setDoc(doc(db,"users",user.uid),{
-    sets
-  });
-}
-
-/* ================= AUTH ================= */
-onAuthStateChanged(auth, async (u)=>{
-  if(!u){
-    document.getElementById("login-screen").style.display="flex";
-    document.getElementById("app").style.display="none";
-    return;
-  }
-
+/* ================= AUTH STATE ================= */
+onAuthStateChanged(auth, async (u) => {
   user = u;
 
-  document.getElementById("login-screen").style.display="none";
-  document.getElementById("app").style.display="block";
+  if (user) {
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("app").style.display = "block";
 
-  document.getElementById("user-name").textContent =
-    u.displayName || u.email;
+    document.getElementById("user-name").textContent = user.displayName;
 
-  await loadSets();
+    loadUserData();
+  } else {
+    document.getElementById("login-screen").style.display = "flex";
+    document.getElementById("app").style.display = "none";
+  }
 });
 
-/* ================= SHARE ================= */
-window.shareSet = async function(i){
-  const set = sets[i];
+/* ================= CLOUD SAVE ================= */
+window.saveToCloud = async function (sets) {
+  if (!user) return;
 
-  await setDoc(doc(db,"sharedSets",crypto.randomUUID()),{
-    ...set,
-    owner:user.displayName,
-    ownerId:user.uid,
-    createdAt:Date.now()
+  await setDoc(doc(db, "users", user.uid), {
+    sets,
+    gems,
+    fireDays
   });
-
-  alert("📤 Set partagé !");
 };
+
+/* ================= LOAD ================= */
+async function loadUserData() {
+  const ref = doc(db, "users", user.uid);
+  const snap = await getDoc(ref);
+
+  if (snap.exists()) {
+    const data = snap.data();
+
+    sets = data.sets || [];
+    gems = data.gems || 0;
+    fireDays = data.fireDays || 0;
+
+    updateGemsUI();
+    updateFireUI();
+    displaySets();
+  }
+}
 
 /* ================= LEADERBOARD ================= */
-window.loadLeaderboard = async function(){
-  const snap = await getDocs(collection(db,"users"));
+window.loadLeaderboard = async function () {
+  const col = collection(db, "users");
+  const snap = await getDocs(col);
 
-  let users = [];
+  let list = [];
 
-  snap.forEach(d=>{
-    users.push(d.data());
-  });
-
-  users.sort((a,b)=>(b.xp||0)-(a.xp||0));
-
-  const list = document.getElementById("leaderboard-list");
-  list.innerHTML = "";
-
-  users.forEach(u=>{
-    const div = document.createElement("div");
-    div.className="set";
-    div.innerHTML = `
-      <div>
-        <strong>${u.name || "User"}</strong><br>
-        ⭐ XP: ${u.xp || 0}
-      </div>
-    `;
-    list.appendChild(div);
-  });
-};
-
-/* ================= TON CODE ORIGINAL ================= */
-
-function saveSetsLocal(){
-  localStorage.setItem("sets",JSON.stringify(sets));
-}
-
-function goHome(){
-  document.querySelectorAll(".container > div")
-    .forEach(d=>d.classList.add("hidden"));
-
-  document.getElementById("home-screen").classList.remove("hidden");
-  displaySets();
-}
-
-function displaySets(){
-  const list = document.getElementById("sets-list");
-  list.innerHTML="";
-
-  sets.forEach((s,i)=>{
-    const div = document.createElement("div");
-    div.className="set";
-
-    div.innerHTML = `
-      <img src="${s.image||'https://via.placeholder.com/60'}">
-      <div>
-        <strong>${s.title}</strong><br>
-        <small>${s.subject}</small>
-      </div>
-    `;
-
-    div.onclick = ()=> startGame(i);
-
-    const buttonsDiv = document.createElement("div");
-    buttonsDiv.className="set-buttons";
-
-    const editBtn = document.createElement("button");
-    editBtn.textContent="✏️";
-    editBtn.onclick = e=>{e.stopPropagation(); showSetEditor(i);};
-
-    const delBtn = document.createElement("button");
-    delBtn.textContent="🗑️";
-    delBtn.onclick = e=>{e.stopPropagation(); deleteSet(i);};
-
-    const shareBtn = document.createElement("button");
-    shareBtn.textContent="🌍";
-    shareBtn.onclick = e=>{
-      e.stopPropagation();
-      shareSet(i);
-    };
-
-    buttonsDiv.appendChild(editBtn);
-    buttonsDiv.appendChild(delBtn);
-    buttonsDiv.appendChild(shareBtn);
-
-    div.appendChild(buttonsDiv);
-    list.appendChild(div);
-  });
-}
-
-window.deleteSet = function(i){
-  sets.splice(i,1);
-  saveSets();
-  saveSetsLocal();
-  displaySets();
-};
-
-window.saveSet = async function(){
-  const title = document.getElementById("set-title").value;
-  const subject = document.getElementById("set-subject").value;
-  const image = document.getElementById("set-image").value;
-
-  const cards = [];
-
-  document.querySelectorAll("#cards-editor > .card-editor")
-  .forEach(div=>{
-    const q = div.children[0].value;
-    const a = div.children[1].value;
-    const img = div.children[2].value;
-
-    const color = div.querySelector(".color-display").style.background;
-    const number = div.querySelector(".color-display").textContent;
-
-    if(q && a){
-      cards.push({question:q,answer:a,image:img,color,number});
-    }
-  });
-
-  sets.push({title,subject,image,cards});
-
-  await saveSets();
-  saveSetsLocal();
-
-  goHome();
-};
-
-/* ================= GAME (ton original conservé) ================= */
-
-window.currentSet=null;
-window.currentCards=[];
-window.currentIndex=0;
-window.errors=[];
-
-window.startGame=function(i){
-  currentSet = sets[i];
-  currentCards = currentSet.cards;
-  currentIndex = 0;
-  errors = [];
-
-  document.querySelectorAll(".container > div")
-    .forEach(d=>d.classList.add("hidden"));
-
-  document.getElementById("game-screen").classList.remove("hidden");
-
-  showCard();
-};
-
-window.showCard=function(){
-  const c = currentCards[currentIndex];
-
-  document.getElementById("game-cards").innerHTML=`
-    <div class="card" onclick="flipCard()">
-      <div class="card-face card-front">
-        ${c.image?`<img src="${c.image}">`:""}
-        <div>${c.question}</div>
-      </div>
-      <div class="card-face card-back">
-        ${c.image?`<img src="${c.image}">`:""}
-        <div>${c.answer}</div>
-      </div>
-    </div>
-  `;
-};
-
-window.flipCard=function(){
-  document.querySelector(".card").classList.toggle("flipped");
-};
-
-window.markAnswer=async function(ok){
-
-  if(ok && user){
-    await updateDoc(doc(db,"users",user.uid),{
-      xp:increment(10)
+  snap.forEach(d => {
+    const data = d.data();
+    list.push({
+      name: data.name || "User",
+      gems: data.gems || 0
     });
-  }
+  });
 
-  currentIndex++;
+  list.sort((a,b)=>b.gems-a.gems);
 
-  if(currentIndex<currentCards.length){
-    showCard();
-  } else {
-    endGame();
-  }
+  document.getElementById("leaderboard").innerHTML =
+    list.slice(0,10).map(u =>
+      `<div>${u.name} — 💎 ${u.gems}</div>`
+    ).join("");
 };
-
-window.endGame=function(){
-  document.querySelectorAll(".container > div")
-    .forEach(d=>d.classList.add("hidden"));
-
-  document.getElementById("score-screen").classList.remove("hidden");
-
-  document.getElementById("final-score").textContent =
-    `Score: ${currentCards.length}/${currentCards.length}`;
-};
-
-/* ================= INIT ================= */
-goHome();
 
 </script>
 
 <style>
-body{margin:0;font-family:Arial;background:#eee}
-.container{width:90%;max-width:800px;margin:auto;background:white;padding:20px;border-radius:20px}
-.hidden{display:none}
-.set{display:flex;align-items:center;padding:10px;margin:10px;background:#f3f3f3;border-radius:10px}
-.set img{width:60px;height:60px;margin-right:10px}
+body {
+  margin:0;
+  font-family: Arial;
+  background: linear-gradient(135deg,#a18cd1,#fbc2eb,#8fd3f4);
+}
+
+#login-screen {
+  display:flex;
+  height:100vh;
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+}
+
+button {
+  padding:10px 20px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+}
+
+.container { display:none; padding:20px; }
+
+.user-bar {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
 </style>
 
 </head>
 
 <body>
 
-<!-- LOGIN -->
-<div id="login-screen" style="display:flex;justify-content:center;align-items:center;height:100vh;">
+<!-- ================= LOGIN ================= -->
+<div id="login-screen">
+  <h1>Flashcards</h1>
   <button onclick="loginGoogle()">🔐 Connexion Google</button>
 </div>
 
-<!-- APP -->
-<div id="app" style="display:none">
+<!-- ================= APP ================= -->
+<div id="app" class="container">
 
-<div class="container">
+  <div class="user-bar">
+    <div>
+      👤 <span id="user-name"></span>
+    </div>
+    <button onclick="logout()">Logout</button>
+  </div>
 
-<h2>Bonjour <span id="user-name"></span></h2>
-<button onclick="logout()">Déconnexion</button>
+  <h2>Mes sets</h2>
 
-<hr>
+  <button onclick="loadLeaderboard()">🏆 Leaderboard</button>
+  <div id="leaderboard"></div>
 
-<button onclick="loadLeaderboard()">🏆 Leaderboard</button>
-
-<div id="home-screen">
-  <input id="set-title">
-  <input id="set-subject">
-  <input id="set-image">
-  <button onclick="saveSet()">Créer set</button>
-
-  <div id="sets-list"></div>
-</div>
-
-<div id="game-screen" class="hidden">
-  <div id="game-cards"></div>
-  <button onclick="markAnswer(true)">Bon</button>
-  <button onclick="markAnswer(false)">Mauvais</button>
-</div>
-
-<div id="score-screen" class="hidden">
-  <p id="final-score"></p>
-</div>
-
-<div id="leaderboard-list"></div>
+  <!-- 👉 TON CODE EXISTANT ICI -->
+  <div id="home-screen"></div>
 
 </div>
-</div>
+
+<script>
+/* ================= TON CODE ORIGINAL ================= */
+
+let sets = [];
+let gems = 0;
+let fireDays = 0;
+
+function updateGemsUI(){
+  console.log("gems:", gems);
+}
+
+function updateFireUI(){
+  console.log("fire:", fireDays);
+}
+
+function displaySets(){
+  console.log("sets:", sets);
+}
+
+/* Sauvegarde auto cloud */
+setInterval(() => {
+  if (user) {
+    window.saveToCloud(sets);
+  }
+}, 5000);
+
+</script>
 
 </body>
 </html>
