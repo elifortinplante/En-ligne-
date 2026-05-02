@@ -1,34 +1,33 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flashcards App</title>
 
 <script src="https://unpkg.com/docx@8.5.0/build/index.umd.js"></script>
 
-<!-- Firebase (modular CDN) -->
+<!-- ================= FIREBASE ================= -->
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+
 import {
   getAuth,
-  GoogleAuthProvider,
-  signInWithPopup,
-  onAuthStateChanged,
-  signOut
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 import {
   getFirestore,
   doc,
   setDoc,
-  getDoc,
-  collection,
-  getDocs
+  getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
-/* ================= FIREBASE CONFIG ================= */
+/* ================= CONFIG ================= */
 const firebaseConfig = {
   apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
   authDomain: "flashcard-2c124.firebaseapp.com",
@@ -41,17 +40,32 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
 
-/* ================= USER ================= */
 let user = null;
 
 /* ================= LOGIN ================= */
-window.loginGoogle = async function () {
+window.loginEmail = async function () {
   try {
-    await signInWithPopup(auth, provider);
+    await signInWithEmailAndPassword(
+      auth,
+      email.value,
+      password.value
+    );
   } catch (e) {
-    alert("Erreur connexion Google");
+    alert("Erreur connexion");
+    console.log(e);
+  }
+};
+
+window.registerEmail = async function () {
+  try {
+    await createUserWithEmailAndPassword(
+      auth,
+      email.value,
+      password.value
+    );
+  } catch (e) {
+    alert("Erreur création compte");
     console.log(e);
   }
 };
@@ -68,17 +82,17 @@ onAuthStateChanged(auth, async (u) => {
     document.getElementById("login-screen").style.display = "none";
     document.getElementById("app").style.display = "block";
 
-    document.getElementById("user-name").textContent = user.displayName;
+    document.getElementById("user-email").textContent = user.email;
 
-    loadUserData();
+    await loadCloud();
   } else {
     document.getElementById("login-screen").style.display = "flex";
     document.getElementById("app").style.display = "none";
   }
 });
 
-/* ================= CLOUD SAVE ================= */
-window.saveToCloud = async function (sets) {
+/* ================= CLOUD ================= */
+async function saveCloud() {
   if (!user) return;
 
   await setDoc(doc(db, "users", user.uid), {
@@ -86,10 +100,9 @@ window.saveToCloud = async function (sets) {
     gems,
     fireDays
   });
-};
+}
 
-/* ================= LOAD ================= */
-async function loadUserData() {
+async function loadCloud() {
   const ref = doc(db, "users", user.uid);
   const snap = await getDoc(ref);
 
@@ -106,28 +119,10 @@ async function loadUserData() {
   }
 }
 
-/* ================= LEADERBOARD ================= */
-window.loadLeaderboard = async function () {
-  const col = collection(db, "users");
-  const snap = await getDocs(col);
-
-  let list = [];
-
-  snap.forEach(d => {
-    const data = d.data();
-    list.push({
-      name: data.name || "User",
-      gems: data.gems || 0
-    });
-  });
-
-  list.sort((a,b)=>b.gems-a.gems);
-
-  document.getElementById("leaderboard").innerHTML =
-    list.slice(0,10).map(u =>
-      `<div>${u.name} — 💎 ${u.gems}</div>`
-    ).join("");
-};
+/* auto sync */
+setInterval(() => {
+  if (user) saveCloud();
+}, 5000);
 
 </script>
 
@@ -138,30 +133,34 @@ body {
   background: linear-gradient(135deg,#a18cd1,#fbc2eb,#8fd3f4);
 }
 
+.hidden { display:none; }
+
 #login-screen {
   display:flex;
   height:100vh;
   justify-content:center;
   align-items:center;
   flex-direction:column;
+  gap:10px;
+}
+
+#app {
+  display:none;
+  padding:20px;
+}
+
+input {
+  padding:10px;
+  margin:5px;
 }
 
 button {
-  padding:10px 20px;
+  padding:10px;
   border:none;
   border-radius:10px;
   cursor:pointer;
 }
-
-.container { display:none; padding:20px; }
-
-.user-bar {
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
 </style>
-
 </head>
 
 <body>
@@ -169,54 +168,56 @@ button {
 <!-- ================= LOGIN ================= -->
 <div id="login-screen">
   <h1>Flashcards</h1>
-  <button onclick="loginGoogle()">🔐 Connexion Google</button>
+
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Mot de passe">
+
+  <button onclick="loginEmail()">Connexion</button>
+  <button onclick="registerEmail()">Créer compte</button>
 </div>
 
 <!-- ================= APP ================= -->
-<div id="app" class="container">
+<div id="app">
 
-  <div class="user-bar">
-    <div>
-      👤 <span id="user-name"></span>
-    </div>
+  <div style="display:flex; justify-content:space-between;">
+    <div>👤 <span id="user-email"></span></div>
     <button onclick="logout()">Logout</button>
   </div>
 
   <h2>Mes sets</h2>
 
-  <button onclick="loadLeaderboard()">🏆 Leaderboard</button>
-  <div id="leaderboard"></div>
-
-  <!-- 👉 TON CODE EXISTANT ICI -->
-  <div id="home-screen"></div>
+  <div id="sets-list"></div>
 
 </div>
 
 <script>
-/* ================= TON CODE ORIGINAL ================= */
+/* ================= TON CODE ================= */
 
-let sets = [];
+let sets = JSON.parse(localStorage.getItem("sets")) || [];
 let gems = 0;
 let fireDays = 0;
 
-function updateGemsUI(){
-  console.log("gems:", gems);
-}
-
-function updateFireUI(){
-  console.log("fire:", fireDays);
-}
+function updateGemsUI(){}
+function updateFireUI(){}
 
 function displaySets(){
-  console.log("sets:", sets);
+  const list = document.getElementById("sets-list");
+  list.innerHTML = "";
+
+  sets.forEach((s,i)=>{
+    const div = document.createElement("div");
+    div.innerHTML = `
+      <h3>${s.title}</h3>
+      <small>${s.subject}</small>
+    `;
+    list.appendChild(div);
+  });
 }
 
-/* Sauvegarde auto cloud */
-setInterval(() => {
-  if (user) {
-    window.saveToCloud(sets);
-  }
-}, 5000);
+/* save local backup */
+setInterval(()=>{
+  localStorage.setItem("sets", JSON.stringify(sets));
+},2000);
 
 </script>
 
