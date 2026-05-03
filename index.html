@@ -2,34 +2,50 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Chat sécurisé</title>
+  <title>App Chat Firebase</title>
 </head>
 <body>
 
-<h2 id="title">Chat</h2>
-<p id="user">Vérification connexion...</p>
+<h2>App Chat</h2>
+
+<!-- LOGIN -->
+<div id="loginBox">
+  <h3>Connexion</h3>
+  <input id="email" placeholder="Email">
+  <input id="password" type="password" placeholder="Mot de passe">
+  <button id="login">Se connecter</button>
+  <button id="signup">Créer un compte</button>
+  <p id="msg"></p>
+</div>
 
 <hr>
 
-<input id="friendEmail" placeholder="Email de l'ami">
-<button id="addFriend">Ouvrir chat</button>
+<!-- CHAT -->
+<div id="chatBox" style="display:none">
 
-<hr>
+  <p id="user"></p>
 
-<div id="chatBox" style="height:250px; overflow:auto; border:1px solid black;"></div>
+  <input id="friendEmail" placeholder="Email ami">
+  <button id="addFriend">Ouvrir chat</button>
 
-<input id="message" placeholder="Message">
-<button id="send">Envoyer</button>
+  <h3 id="title"></h3>
 
-<br><br>
-<button id="logout">Déconnexion</button>
+  <div id="messages" style="height:250px; overflow:auto; border:1px solid black;"></div>
+
+  <input id="message" placeholder="Message">
+  <button id="send">Envoyer</button>
+
+  <button id="logout">Déconnexion</button>
+
+</div>
 
 <script type="module">
 
-/* ✔️ IMPORTS */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -43,7 +59,6 @@ import {
   onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-/* ✔️ CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
   authDomain: "flashcard-2c124.firebaseapp.com",
@@ -60,20 +75,49 @@ const db = getFirestore(app);
 let currentUser = null;
 let currentFriend = null;
 
-/* ✔️ 1. BLOCAGE SI PAS CONNECTÉ */
+/* UI */
+const loginBox = document.getElementById("loginBox");
+const chatBox = document.getElementById("chatBox");
+
+/* LOGIN */
+document.getElementById("login").onclick = () => {
+  signInWithEmailAndPassword(auth,
+    email.value,
+    password.value
+  )
+  .then(() => {})
+  .catch(e => msg.textContent = e.message);
+};
+
+/* SIGNUP */
+document.getElementById("signup").onclick = () => {
+  createUserWithEmailAndPassword(auth,
+    email.value,
+    password.value
+  )
+  .then(() => {})
+  .catch(e => msg.textContent = e.message);
+};
+
+/* CHECK AUTH */
 onAuthStateChanged(auth, (user) => {
 
   if (!user) {
-    window.location.href = "index.html"; // retour login
+    loginBox.style.display = "block";
+    chatBox.style.display = "none";
     return;
   }
 
   currentUser = user;
+
+  loginBox.style.display = "none";
+  chatBox.style.display = "block";
+
   document.getElementById("user").textContent =
     "Connecté : " + user.email;
 });
 
-/* ✔️ 2. OUVRIR CHAT AMI */
+/* AMI */
 document.getElementById("addFriend").onclick = () => {
   currentFriend = document.getElementById("friendEmail").value;
 
@@ -83,7 +127,7 @@ document.getElementById("addFriend").onclick = () => {
   loadMessages();
 };
 
-/* ✔️ 3. ENVOYER MESSAGE */
+/* ENVOYER */
 document.getElementById("send").onclick = async () => {
 
   if (!currentUser || !currentFriend) return;
@@ -100,17 +144,17 @@ document.getElementById("send").onclick = async () => {
   document.getElementById("message").value = "";
 };
 
-/* ✔️ 4. MESSAGES TEMPS RÉEL */
+/* LOAD */
 function loadMessages() {
 
   const q = query(collection(db, "messages"), orderBy("time"));
 
-  onSnapshot(q, (snapshot) => {
+  onSnapshot(q, (snap) => {
 
-    const box = document.getElementById("chatBox");
+    const box = document.getElementById("messages");
     box.innerHTML = "";
 
-    snapshot.forEach((doc) => {
+    snap.forEach(doc => {
       const m = doc.data();
 
       if (
@@ -124,7 +168,7 @@ function loadMessages() {
   });
 }
 
-/* ✔️ 5. LOGOUT */
+/* LOGOUT */
 document.getElementById("logout").onclick = () => {
   signOut(auth);
 };
