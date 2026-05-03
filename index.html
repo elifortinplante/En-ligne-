@@ -1,24 +1,49 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-  <title>App</title>
+  <meta charset="UTF-8">
+  <title>App Firebase Login</title>
 </head>
 <body>
 
-<h1>Bienvenue 🔥</h1>
+<h2>Connexion / Inscription</h2>
 
-<input id="dataInput" placeholder="Écris quelque chose">
+<input type="email" id="email" placeholder="Email"><br><br>
+<input type="password" id="password" placeholder="Mot de passe"><br><br>
+
+<button id="signup">Créer un compte</button>
+<button id="login">Se connecter</button>
+
+<hr>
+
+<h3>Test après connexion</h3>
+<p id="status">Pas connecté</p>
+
+<input id="dataInput" placeholder="Écris un test">
 <button id="save">Sauvegarder</button>
 
 <p id="output"></p>
 
-<button id="logout">Se déconnecter</button>
+<button id="logout">Déconnexion</button>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { 
+    getAuth, 
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    onAuthStateChanged,
+    signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
+  import { 
+    getFirestore, 
+    doc, 
+    setDoc, 
+    getDoc 
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // 🔥 CONFIG FIREBASE (le tien)
   const firebaseConfig = {
     apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
     authDomain: "flashcard-2c124.firebaseapp.com",
@@ -32,45 +57,66 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  const input = document.getElementById("dataInput");
-  const output = document.getElementById("output");
+  const email = document.getElementById("email");
+  const password = document.getElementById("password");
+  const status = document.getElementById("status");
 
-  let currentUser = null;
+  let user = null;
 
-  // Vérifie si connecté
-  onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      window.location.href = "index.html";
-      return;
-    }
+  // 🔐 INSCRIPTION
+  document.getElementById("signup").onclick = () => {
+    createUserWithEmailAndPassword(auth, email.value, password.value)
+      .then(() => {
+        alert("Compte créé !");
+      })
+      .catch(e => alert(e.message));
+  };
 
-    currentUser = user;
+  // 🔐 CONNEXION
+  document.getElementById("login").onclick = () => {
+    signInWithEmailAndPassword(auth, email.value, password.value)
+      .then(() => {
+        alert("Connecté !");
+      })
+      .catch(e => alert(e.message));
+  };
 
-    // Charger les données existantes
-    const docRef = doc(db, "users", user.uid);
-    const docSnap = await getDoc(docRef);
+  // 👀 SURVEILLER CONNEXION
+  onAuthStateChanged(auth, async (u) => {
+    if (u) {
+      user = u;
+      status.textContent = "Connecté : " + u.email;
 
-    if (docSnap.exists()) {
-      output.textContent = "Sauvegardé : " + docSnap.data().text;
+      const docRef = doc(db, "users", u.uid);
+      const snap = await getDoc(docRef);
+
+      if (snap.exists()) {
+        document.getElementById("output").textContent =
+          "Sauvegardé : " + snap.data().text;
+      }
+    } else {
+      user = null;
+      status.textContent = "Pas connecté";
     }
   });
 
-  // Sauvegarder
+  // 💾 SAUVEGARDE TEST
   document.getElementById("save").onclick = async () => {
-    if (!currentUser) return;
+    if (!user) return alert("Pas connecté");
 
-    await setDoc(doc(db, "users", currentUser.uid), {
-      text: input.value
+    const value = document.getElementById("dataInput").value;
+
+    await setDoc(doc(db, "users", user.uid), {
+      text: value
     });
 
-    output.textContent = "Sauvegardé : " + input.value;
+    document.getElementById("output").textContent =
+      "Sauvegardé : " + value;
   };
 
-  // Déconnexion
+  // 🚪 DÉCONNEXION
   document.getElementById("logout").onclick = () => {
-    signOut(auth).then(() => {
-      window.location.href = "index.html";
-    });
+    signOut(auth);
   };
 
 </script>
