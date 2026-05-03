@@ -2,24 +2,27 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>App Firebase Login</title>
+  <title>Login Firebase</title>
 </head>
+
 <body>
 
-<h2>Connexion / Inscription</h2>
+<h2>Connexion</h2>
 
-<input type="email" id="email" placeholder="Email"><br><br>
-<input type="password" id="password" placeholder="Mot de passe"><br><br>
+<!-- ✔️ UI OBLIGATOIRE -->
+<input id="email" type="email" placeholder="Email">
+<input id="password" type="password" placeholder="Mot de passe">
+
+<br><br>
 
 <button id="signup">Créer un compte</button>
 <button id="login">Se connecter</button>
 
 <hr>
 
-<h3>Test après connexion</h3>
 <p id="status">Pas connecté</p>
 
-<input id="dataInput" placeholder="Écris un test">
+<input id="dataInput" placeholder="Test sauvegarde">
 <button id="save">Sauvegarder</button>
 
 <p id="output"></p>
@@ -27,97 +30,112 @@
 <button id="logout">Déconnexion</button>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { 
-    getAuth, 
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    onAuthStateChanged,
-    signOut
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-  import { 
-    getFirestore, 
-    doc, 
-    setDoc, 
-    getDoc 
-  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+/* ✔️ 1. IMPORTS (corrigé) */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
-  // 🔥 CONFIG FIREBASE (le tien)
-  const firebaseConfig = {
-    apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
-    authDomain: "flashcard-2c124.firebaseapp.com",
-    projectId: "flashcard-2c124",
-    storageBucket: "flashcard-2c124.firebasestorage.app",
-    messagingSenderId: "874120400032",
-    appId: "1:874120400032:web:580f1de61498e0134b4dc5"
-  };
+import {
+  getAuth,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  getDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-  const email = document.getElementById("email");
-  const password = document.getElementById("password");
-  const status = document.getElementById("status");
 
-  let user = null;
+/* ✔️ 2. CONFIG FIREBASE (le tien) */
+const firebaseConfig = {
+  apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
+  authDomain: "flashcard-2c124.firebaseapp.com",
+  projectId: "flashcard-2c124",
+  storageBucket: "flashcard-2c124.firebasestorage.app",
+  messagingSenderId: "874120400032",
+  appId: "1:874120400032:web:580f1de61498e0134b4dc5"
+};
 
-  // 🔐 INSCRIPTION
-  document.getElementById("signup").onclick = () => {
-    createUserWithEmailAndPassword(auth, email.value, password.value)
-      .then(() => {
-        alert("Compte créé !");
-      })
-      .catch(e => alert(e.message));
-  };
 
-  // 🔐 CONNEXION
-  document.getElementById("login").onclick = () => {
-    signInWithEmailAndPassword(auth, email.value, password.value)
-      .then(() => {
-        alert("Connecté !");
-      })
-      .catch(e => alert(e.message));
-  };
+/* ✔️ 3. INIT */
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-  // 👀 SURVEILLER CONNEXION
-  onAuthStateChanged(auth, async (u) => {
-    if (u) {
-      user = u;
-      status.textContent = "Connecté : " + u.email;
 
-      const docRef = doc(db, "users", u.uid);
-      const snap = await getDoc(docRef);
+/* ✔️ 4. VARIABLES DOM */
+const email = document.getElementById("email");
+const password = document.getElementById("password");
+const status = document.getElementById("status");
+const output = document.getElementById("output");
 
-      if (snap.exists()) {
-        document.getElementById("output").textContent =
-          "Sauvegardé : " + snap.data().text;
-      }
-    } else {
-      user = null;
-      status.textContent = "Pas connecté";
-    }
+
+let currentUser = null;
+
+
+/* ✔️ 5. INSCRIPTION */
+document.getElementById("signup").onclick = () => {
+  createUserWithEmailAndPassword(auth, email.value, password.value)
+    .then(() => alert("Compte créé"))
+    .catch(err => alert(err.message));
+};
+
+
+/* ✔️ 6. CONNEXION (corrigé) */
+document.getElementById("login").onclick = () => {
+  signInWithEmailAndPassword(auth, email.value, password.value)
+    .then(() => alert("Connecté"))
+    .catch(err => alert(err.message));
+};
+
+
+/* ✔️ 7. SURVEILLER CONNEXION */
+onAuthStateChanged(auth, async (user) => {
+
+  if (!user) {
+    currentUser = null;
+    status.textContent = "Pas connecté";
+    return;
+  }
+
+  currentUser = user;
+  status.textContent = "Connecté : " + user.email;
+
+  const ref = doc(db, "users", user.uid);
+  const snap = await getDoc(ref);
+
+  if (snap.exists()) {
+    output.textContent = "Sauvegardé : " + snap.data().text;
+  }
+});
+
+
+/* ✔️ 8. SAUVEGARDE */
+document.getElementById("save").onclick = async () => {
+
+  if (!currentUser) {
+    alert("Tu dois être connecté");
+    return;
+  }
+
+  const value = document.getElementById("dataInput").value;
+
+  await setDoc(doc(db, "users", currentUser.uid), {
+    text: value
   });
 
-  // 💾 SAUVEGARDE TEST
-  document.getElementById("save").onclick = async () => {
-    if (!user) return alert("Pas connecté");
+  output.textContent = "Sauvegardé : " + value;
+};
 
-    const value = document.getElementById("dataInput").value;
 
-    await setDoc(doc(db, "users", user.uid), {
-      text: value
-    });
-
-    document.getElementById("output").textContent =
-      "Sauvegardé : " + value;
-  };
-
-  // 🚪 DÉCONNEXION
-  document.getElementById("logout").onclick = () => {
-    signOut(auth);
-  };
+/* ✔️ 9. LOGOUT */
+document.getElementById("logout").onclick = () => {
+  signOut(auth);
+};
 
 </script>
 
