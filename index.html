@@ -2,50 +2,31 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>App Chat Firebase</title>
+  <title>Flashcards Online</title>
 </head>
 <body>
 
-<h2>App Chat</h2>
+<h2>Flashcards</h2>
 
-<!-- LOGIN -->
-<div id="loginBox">
-  <h3>Connexion</h3>
-  <input id="email" placeholder="Email">
-  <input id="password" type="password" placeholder="Mot de passe">
-  <button id="login">Se connecter</button>
-  <button id="signup">Créer un compte</button>
-  <p id="msg"></p>
-</div>
+<p id="user"></p>
+
+<!-- CRÉER FLASHCARD -->
+<input id="question" placeholder="Question">
+<input id="answer" placeholder="Réponse">
+<button id="add">Ajouter</button>
 
 <hr>
 
-<!-- CHAT -->
-<div id="chatBox" style="display:none">
+<!-- AFFICHAGE -->
+<div id="list"></div>
 
-  <p id="user"></p>
-
-  <input id="friendEmail" placeholder="Email ami">
-  <button id="addFriend">Ouvrir chat</button>
-
-  <h3 id="title"></h3>
-
-  <div id="messages" style="height:250px; overflow:auto; border:1px solid black;"></div>
-
-  <input id="message" placeholder="Message">
-  <button id="send">Envoyer</button>
-
-  <button id="logout">Déconnexion</button>
-
-</div>
+<button id="logout">Déconnexion</button>
 
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getAuth,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -55,10 +36,12 @@ import {
   collection,
   addDoc,
   query,
-  orderBy,
-  onSnapshot
+  where,
+  onSnapshot,
+  orderBy
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+/* CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
   authDomain: "flashcard-2c124.firebaseapp.com",
@@ -73,96 +56,64 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 let currentUser = null;
-let currentFriend = null;
 
-/* UI */
-const loginBox = document.getElementById("loginBox");
-const chatBox = document.getElementById("chatBox");
-
-/* LOGIN */
-document.getElementById("login").onclick = () => {
-  signInWithEmailAndPassword(auth,
-    email.value,
-    password.value
-  )
-  .then(() => {})
-  .catch(e => msg.textContent = e.message);
-};
-
-/* SIGNUP */
-document.getElementById("signup").onclick = () => {
-  createUserWithEmailAndPassword(auth,
-    email.value,
-    password.value
-  )
-  .then(() => {})
-  .catch(e => msg.textContent = e.message);
-};
-
-/* CHECK AUTH */
+/* PROTECTION */
 onAuthStateChanged(auth, (user) => {
 
   if (!user) {
-    loginBox.style.display = "block";
-    chatBox.style.display = "none";
+    window.location.href = "index.html";
     return;
   }
 
   currentUser = user;
-
-  loginBox.style.display = "none";
-  chatBox.style.display = "block";
-
   document.getElementById("user").textContent =
     "Connecté : " + user.email;
+
+  loadFlashcards();
 });
 
-/* AMI */
-document.getElementById("addFriend").onclick = () => {
-  currentFriend = document.getElementById("friendEmail").value;
+/* AJOUT FLASHCARD */
+document.getElementById("add").onclick = async () => {
 
-  document.getElementById("title").textContent =
-    "Chat avec " + currentFriend;
+  const q = document.getElementById("question").value;
+  const a = document.getElementById("answer").value;
 
-  loadMessages();
-};
+  if (!q || !a) return;
 
-/* ENVOYER */
-document.getElementById("send").onclick = async () => {
-
-  if (!currentUser || !currentFriend) return;
-
-  const msg = document.getElementById("message").value;
-
-  await addDoc(collection(db, "messages"), {
-    from: currentUser.email,
-    to: currentFriend,
-    text: msg,
+  await addDoc(collection(db, "flashcards"), {
+    user: currentUser.uid,
+    question: q,
+    answer: a,
     time: Date.now()
   });
 
-  document.getElementById("message").value = "";
+  document.getElementById("question").value = "";
+  document.getElementById("answer").value = "";
 };
 
-/* LOAD */
-function loadMessages() {
+/* CHARGER FLASHCARDS */
+function loadFlashcards() {
 
-  const q = query(collection(db, "messages"), orderBy("time"));
+  const q = query(
+    collection(db, "flashcards"),
+    where("user", "==", currentUser.uid),
+    orderBy("time")
+  );
 
   onSnapshot(q, (snap) => {
 
-    const box = document.getElementById("messages");
-    box.innerHTML = "";
+    const list = document.getElementById("list");
+    list.innerHTML = "";
 
     snap.forEach(doc => {
-      const m = doc.data();
+      const f = doc.data();
 
-      if (
-        (m.from === currentUser.email && m.to === currentFriend) ||
-        (m.from === currentFriend && m.to === currentUser.email)
-      ) {
-        box.innerHTML += `<p><b>${m.from}</b> : ${m.text}</p>`;
-      }
+      list.innerHTML += `
+        <div style="border:1px solid black; margin:5px; padding:5px">
+          <b>Q:</b> ${f.question}<br>
+          <b>R:</b> ${f.answer}
+        </div>
+      `;
     });
 
   });
