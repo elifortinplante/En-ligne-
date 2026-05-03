@@ -2,55 +2,48 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Login Firebase</title>
+  <title>Chat sécurisé</title>
 </head>
-
 <body>
 
-<h2>Connexion</h2>
-
-<!-- ✔️ UI OBLIGATOIRE -->
-<input id="email" type="email" placeholder="Email">
-<input id="password" type="password" placeholder="Mot de passe">
-
-<br><br>
-
-<button id="signup">Créer un compte</button>
-<button id="login">Se connecter</button>
+<h2 id="title">Chat</h2>
+<p id="user">Vérification connexion...</p>
 
 <hr>
 
-<p id="status">Pas connecté</p>
+<input id="friendEmail" placeholder="Email de l'ami">
+<button id="addFriend">Ouvrir chat</button>
 
-<input id="dataInput" placeholder="Test sauvegarde">
-<button id="save">Sauvegarder</button>
+<hr>
 
-<p id="output"></p>
+<div id="chatBox" style="height:250px; overflow:auto; border:1px solid black;"></div>
 
+<input id="message" placeholder="Message">
+<button id="send">Envoyer</button>
+
+<br><br>
 <button id="logout">Déconnexion</button>
 
 <script type="module">
 
-/* ✔️ 1. IMPORTS (corrigé) */
+/* ✔️ IMPORTS */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-
 import {
   getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
   onAuthStateChanged,
   signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
   getFirestore,
-  doc,
-  setDoc,
-  getDoc
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-
-/* ✔️ 2. CONFIG FIREBASE (le tien) */
+/* ✔️ CONFIG */
 const firebaseConfig = {
   apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
   authDomain: "flashcard-2c124.firebaseapp.com",
@@ -60,79 +53,78 @@ const firebaseConfig = {
   appId: "1:874120400032:web:580f1de61498e0134b4dc5"
 };
 
-
-/* ✔️ 3. INIT */
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-
-/* ✔️ 4. VARIABLES DOM */
-const email = document.getElementById("email");
-const password = document.getElementById("password");
-const status = document.getElementById("status");
-const output = document.getElementById("output");
-
-
 let currentUser = null;
+let currentFriend = null;
 
-
-/* ✔️ 5. INSCRIPTION */
-document.getElementById("signup").onclick = () => {
-  createUserWithEmailAndPassword(auth, email.value, password.value)
-    .then(() => alert("Compte créé"))
-    .catch(err => alert(err.message));
-};
-
-
-/* ✔️ 6. CONNEXION (corrigé) */
-document.getElementById("login").onclick = () => {
-  signInWithEmailAndPassword(auth, email.value, password.value)
-    .then(() => alert("Connecté"))
-    .catch(err => alert(err.message));
-};
-
-
-/* ✔️ 7. SURVEILLER CONNEXION */
-onAuthStateChanged(auth, async (user) => {
+/* ✔️ 1. BLOCAGE SI PAS CONNECTÉ */
+onAuthStateChanged(auth, (user) => {
 
   if (!user) {
-    currentUser = null;
-    status.textContent = "Pas connecté";
+    window.location.href = "index.html"; // retour login
     return;
   }
 
   currentUser = user;
-  status.textContent = "Connecté : " + user.email;
-
-  const ref = doc(db, "users", user.uid);
-  const snap = await getDoc(ref);
-
-  if (snap.exists()) {
-    output.textContent = "Sauvegardé : " + snap.data().text;
-  }
+  document.getElementById("user").textContent =
+    "Connecté : " + user.email;
 });
 
+/* ✔️ 2. OUVRIR CHAT AMI */
+document.getElementById("addFriend").onclick = () => {
+  currentFriend = document.getElementById("friendEmail").value;
 
-/* ✔️ 8. SAUVEGARDE */
-document.getElementById("save").onclick = async () => {
+  document.getElementById("title").textContent =
+    "Chat avec " + currentFriend;
 
-  if (!currentUser) {
-    alert("Tu dois être connecté");
-    return;
-  }
-
-  const value = document.getElementById("dataInput").value;
-
-  await setDoc(doc(db, "users", currentUser.uid), {
-    text: value
-  });
-
-  output.textContent = "Sauvegardé : " + value;
+  loadMessages();
 };
 
+/* ✔️ 3. ENVOYER MESSAGE */
+document.getElementById("send").onclick = async () => {
 
-/* ✔️ 9. LOGOUT */
+  if (!currentUser || !currentFriend) return;
+
+  const msg = document.getElementById("message").value;
+
+  await addDoc(collection(db, "messages"), {
+    from: currentUser.email,
+    to: currentFriend,
+    text: msg,
+    time: Date.now()
+  });
+
+  document.getElementById("message").value = "";
+};
+
+/* ✔️ 4. MESSAGES TEMPS RÉEL */
+function loadMessages() {
+
+  const q = query(collection(db, "messages"), orderBy("time"));
+
+  onSnapshot(q, (snapshot) => {
+
+    const box = document.getElementById("chatBox");
+    box.innerHTML = "";
+
+    snapshot.forEach((doc) => {
+      const m = doc.data();
+
+      if (
+        (m.from === currentUser.email && m.to === currentFriend) ||
+        (m.from === currentFriend && m.to === currentUser.email)
+      ) {
+        box.innerHTML += `<p><b>${m.from}</b> : ${m.text}</p>`;
+      }
+    });
+
+  });
+}
+
+/* ✔️ 5. LOGOUT */
 document.getElementById("logout").onclick = () => {
   signOut(auth);
 };
