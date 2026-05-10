@@ -537,7 +537,7 @@ setTimeout(() => {
   div.querySelector(".btn-del-card").onclick = ()=> div.remove();
 }
 
-async function saveSet(){
+window.saveSet = async function(){
   const title = document.getElementById("set-title").value;
   const subject = document.getElementById("set-subject").value;
   const image = document.getElementById("set-image").value;
