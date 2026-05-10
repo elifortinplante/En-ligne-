@@ -249,6 +249,7 @@ h1, h2 {
 <button onclick="showSetEditor()">➕ Nouveau set</button>
 <button onclick="document.getElementById('import-file').click()">📥 Importer un set</button>
 <button onclick="exportAllSets()">💾 Exporter tous les sets</button>
+<button onclick="logout()">Se déconnecter</button>
 <input type="file" id="import-file" class="hidden" onchange="importSet(event)">
 <div id="sets-list"></div>
 </div>
@@ -335,8 +336,8 @@ import {
   getAuth,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signOut
+  signOut,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
@@ -355,7 +356,7 @@ const auth = getAuth(app);
 onAuthStateChanged(auth, (user) => {
   if(user){
     document.getElementById("login-screen").style.display = "none";
-    document.querySelector(".container").style.display = "flex";
+    document.querySelector(".container").style.display = "block";
 
     loadData();
   } else {
