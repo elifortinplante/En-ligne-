@@ -211,9 +211,27 @@ h1, h2 {
   border-radius: 4px;
   border: 1px solid #aaa;
 }
+#login-screen {
+  text-align: center;
+}
+
+.container {
+  display: none;
+}
 </style>
 </head>
 <body>
+<div id="login-screen">
+  <h2>Connexion</h2>
+
+  <input id="email" type="email" placeholder="Email"><br><br>
+  <input id="password" type="password" placeholder="Mot de passe"><br><br>
+
+  <button onclick="login()">Se connecter</button>
+  <button onclick="register()">Créer un compte</button>
+
+  <p id="login-error"></p>
+</div>
 <div class="container">
 
 <div id="home-screen">
@@ -313,6 +331,13 @@ import {
   setDoc,
   getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBfB2J2Tk-QBeTCKEIC4ybYkpiwymavDOU",
@@ -326,8 +351,26 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 const db = getFirestore(app);
+const auth = getAuth(app);
+onAuthStateChanged(auth, (user) => {
+  if(user){
+    document.getElementById("login-screen").style.display = "none";
+    document.querySelector(".container").style.display = "flex";
 
-const USER_ID = "user1";
+    loadData();
+  } else {
+    document.getElementById("login-screen").style.display = "block";
+    document.querySelector(".container").style.display = "none";
+  }
+});
+
+let USER_ID = null;
+onAuthStateChanged(auth, (user) => {
+  if(user){
+    USER_ID = user.uid;
+    loadData();
+  }
+});
 let sets = [];
 
 let currentSet = null;
@@ -995,6 +1038,31 @@ const doc = new docx.Document({
     a.click();
     URL.revokeObjectURL(url);
   }
+}
+window.login = async function(){
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  try{
+    await signInWithEmailAndPassword(auth, email, password);
+  }catch(err){
+    document.getElementById("login-error").textContent = "Erreur connexion";
+  }
+}
+
+window.register = async function(){
+  const email = document.getElementById("email").value;
+  const password = document.getElementById("password").value;
+
+  try{
+    await createUserWithEmailAndPassword(auth, email, password);
+  }catch(err){
+    document.getElementById("login-error").textContent = "Erreur création compte";
+  }
+}
+
+window.logout = async function(){
+  await signOut(auth);
 }
 
 loadData();
