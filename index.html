@@ -353,18 +353,23 @@ const app = initializeApp(firebaseConfig);
 
 const db = getFirestore(app);
 const auth = getAuth(app);
+let USER_ID = null;
+
 onAuthStateChanged(auth, (user) => {
-  if(user){
+  if (user) {
+    USER_ID = user.uid;
+
     document.getElementById("login-screen").style.display = "none";
     document.querySelector(".container").style.display = "block";
 
     loadData();
   } else {
+    USER_ID = null;
+
     document.getElementById("login-screen").style.display = "block";
     document.querySelector(".container").style.display = "none";
   }
 });
-
 
 let USER_ID = null;
 
@@ -1062,9 +1067,6 @@ window.register = async function(){
 window.logout = async function(){
   await signOut(auth);
 }
-window.login = login;
-window.register = register;
-window.logout = logout;
 
 loadData();
 </script>
