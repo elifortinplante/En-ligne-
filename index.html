@@ -1109,16 +1109,14 @@ async function loadGemRequests(){
     div.style.marginBottom = "10px";
 
     div.innerHTML = `
-  <b>${data.email}</b>
-  demande
-  <b>${data.amount}</b>
-  💎
+      <b>${data.email}</b>
+      demande
+      <b>${data.amount}</b>
+      💎
+      <button>Accepter</button>
+    `;
 
-  <button class="accept-btn">Accepter</button>
-
-  <button class="رفض-btn">Refuser</button>
-`;
-    div.querySelector(".accept-btn").onclick = async ()=>{
+    div.querySelector("button").onclick = async ()=>{
 
       // trouver utilisateur
       const userRef = doc(db, "users", data.uid);
@@ -1139,12 +1137,6 @@ async function loadGemRequests(){
 
       loadGemRequests();
     };
-div.querySelector(".reject-btn").onclick = async ()=>{
-
-  await deleteDoc(docSnap.ref);
-
-  loadGemRequests();
-};
 
     list.appendChild(div);
   });
