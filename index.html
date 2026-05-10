@@ -441,9 +441,9 @@ async function saveSets(){
 await loadData();
 
 }
-function goHome(){ document.querySelectorAll(".container > div").forEach(d=>d.classList.add("hidden")); document.getElementById("home-screen").classList.remove("hidden"); displaySets(); }
+window.goHome = function(){ document.querySelectorAll(".container > div").forEach(d=>d.classList.add("hidden")); document.getElementById("home-screen").classList.remove("hidden"); displaySets(); }
 
-function showSetEditor(setIndex=null){
+window.showSetEditor = function(setIndex=null){
   document.querySelectorAll(".container > div").forEach(d=>d.classList.add("hidden"));
   document.getElementById("editor-screen").classList.remove("hidden");
   document.getElementById("cards-editor").innerHTML = "";
@@ -465,7 +465,7 @@ function showSetEditor(setIndex=null){
   }
 }
 
-function addCardEditor(q='',a='',img='',color="",number=""){
+window.addCardEditor = function(q='',a='',img='',color="",number=""){
   const div=document.createElement("div");
   div.className="card-editor";
   div.innerHTML=`
@@ -614,7 +614,7 @@ buttonsDiv.appendChild(wordBtn);
   });
 }
 
-function deleteSet(i){
+window.deleteSet = function(i){
   if(confirm("Supprimer ce set ?")){
     sets.splice(i,1);
     saveSets();
@@ -622,7 +622,7 @@ function deleteSet(i){
   }
 }
 
-function startGame(i){
+window.startGame = function(i){
 streak = 0;
 sessionGems = 0;
 updateGemsUI();
@@ -759,7 +759,7 @@ function restartErrors(){
   showCard();
 }
 
-function importSet(event){
+window.importSet = function(event){
   const file = event.target.files[0];
   if(!file) return;
   const reader = new FileReader();
@@ -776,7 +776,7 @@ function importSet(event){
   event.target.value="";
 }
 
-function exportAllSets(){
+window.exportAllSets = function(){
   const blob = new Blob([JSON.stringify(sets,null,2)], {type:"application/json"});
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -833,7 +833,7 @@ function updateGelUI(){
   document.getElementById("gel-count").textContent = gels;
 }
 
-function buyGel(){
+window.buyGel = function(){
 
   if(gels >= 2) return alert("Max 2 🧊");
 
@@ -851,7 +851,7 @@ function buyGel(){
 
 }
 
-function buy2Gels(){
+window.buy2Gels = function(){
 
   if(gels >= 1) return alert("Max 2 🧊");
 
@@ -922,7 +922,7 @@ function updateTheme(){
       "linear-gradient(135deg, #a18cd1, #fbc2eb, #8fd3f4)";
   }
 }
-function checkCode(){
+window.checkCode = function(){
   const code = document.getElementById("secretCode").value;
 
 if(code === "&voyage&"){
