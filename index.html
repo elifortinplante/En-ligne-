@@ -365,13 +365,9 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
+
 let USER_ID = null;
-onAuthStateChanged(auth, (user) => {
-  if(user){
-    USER_ID = user.uid;
-    loadData();
-  }
-});
+
 let sets = [];
 
 let currentSet = null;
@@ -382,6 +378,7 @@ let errors = [];
 let voyageMode = false;
 let voyageProtectUntil = 0;
 async function saveData(){
+if (!USER_ID) return;
 
   await setDoc(
     doc(db, "users", USER_ID),
@@ -1065,6 +1062,9 @@ window.register = async function(){
 window.logout = async function(){
   await signOut(auth);
 }
+window.login = login;
+window.register = register;
+window.logout = logout;
 
 loadData();
 </script>
