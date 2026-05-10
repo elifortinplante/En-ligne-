@@ -355,14 +355,14 @@ const db = getFirestore(app);
 const auth = getAuth(app);
 let USER_ID = null;
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   if (user) {
     USER_ID = user.uid;
 
     document.getElementById("login-screen").style.display = "none";
     document.querySelector(".container").style.display = "block";
 
-    loadData();
+    await loadData(); // IMPORTANT
   } else {
     USER_ID = null;
 
@@ -399,6 +399,7 @@ if (!USER_ID) return;
 }
 
 async function loadData(){
+if (!USER_ID) return;
 
   const ref = doc(db, "users", USER_ID);
 
