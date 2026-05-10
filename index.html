@@ -237,7 +237,11 @@ h1, h2 {
 <div id="home-screen">
 <h1 style="display:flex; align-items:center;">
   Mes Sets
-  <span id="gems-display" style="margin-left:10px;">💎 0</span>
+  <span id="gems-display"
+style="margin-left:10px; cursor:pointer;"
+onclick="requestGems()">
+💎 0
+</span>
 <span id="fire-display" style="margin-left:10px;">
 
   🔥 <span id="fire-days">0</span>
@@ -252,6 +256,11 @@ h1, h2 {
 <button onclick="logout()">Se déconnecter</button>
 <input type="file" id="import-file" class="hidden" onchange="importSet(event)">
 <div id="sets-list"></div>
+<div id="admin-panel" style="display:none; margin-top:20px;">
+  <h2>Demandes de gemmes</h2>
+
+  <div id="requests-list"></div>
+</div>
 </div>
 
 <div id="info-screen" class="hidden">
@@ -326,12 +335,17 @@ Pendant que tu modifies
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
-import {
+ import {
   getFirestore,
   doc,
   setDoc,
-  getDoc
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  getDoc,
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc
+}
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -354,16 +368,20 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 let USER_ID = null;
+let USER_EMAIL = "";
+const ADMIN_EMAIL = "elifortinplante2011@gmail.com";
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
     USER_ID = user.uid;
+    USER_EMAIL = user.email;
 
     document.getElementById("login-screen").style.display = "none";
     document.querySelector(".container").style.display = "block";
 
     await loadData(); // IMPORTANT
-  } else {
+ loadGemRequests();
+} else {
     USER_ID = null;
 
     document.getElementById("login-screen").style.display = "block";
@@ -1040,6 +1058,88 @@ const doc = new docx.Document({
     a.click();
     URL.revokeObjectURL(url);
   }
+}
+window.requestGems = async function(){
+
+  const amount = prompt("Combien de gemmes veux-tu ?");
+
+  if(!amount) return;
+
+  // ADMIN = ajoute direct
+  if(USER_EMAIL === ADMIN_EMAIL){
+
+    gems += parseInt(amount);
+
+    saveData();
+
+    updateGemsUI();
+
+    alert("✅ Gemmes ajoutées");
+
+    return;
+  }
+
+  // UTILISATEUR NORMAL = envoie demande
+  await addDoc(collection(db, "gemRequests"), {
+  email: USER_EMAIL,
+  uid: USER_ID,
+  amount: parseInt(amount)
+});
+
+  alert("✅ Demande envoyée à l'admin");
+}
+async function loadGemRequests(){
+
+  if(USER_EMAIL !== ADMIN_EMAIL) return;
+
+  document.getElementById("admin-panel").style.display = "block";
+
+  const list = document.getElementById("requests-list");
+
+  list.innerHTML = "";
+
+  const snap = await getDocs(collection(db, "gemRequests"));
+
+  snap.forEach((docSnap)=>{
+
+    const data = docSnap.data();
+
+    const div = document.createElement("div");
+
+    div.style.marginBottom = "10px";
+
+    div.innerHTML = `
+      <b>${data.email}</b>
+      demande
+      <b>${data.amount}</b>
+      💎
+      <button>Accepter</button>
+    `;
+
+    div.querySelector("button").onclick = async ()=>{
+
+      // trouver utilisateur
+      const userRef = doc(db, "users", data.uid);
+
+      const userSnap = await getDoc(userRef);
+
+      if(userSnap.exists()){
+
+        const userData = userSnap.data();
+
+        await setDoc(userRef, {
+          ...userData,
+          gems: (userData.gems || 0) + data.amount
+        });
+      }
+
+      await deleteDoc(docSnap.ref);
+
+      loadGemRequests();
+    };
+
+    list.appendChild(div);
+  });
 }
 window.login = async function(){
   const email = document.getElementById("email").value;
