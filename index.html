@@ -685,7 +685,7 @@ function showCard(){
 
 function flipCard(){ document.querySelector(".card").classList.toggle("flipped"); }
 
-function markAnswer(correct){
+window.markAnswer = function(correct){
 if(correct){
   streak++;
   gems++;
@@ -740,7 +740,7 @@ function endGame(){
   );
 }
 
-function restartAll(){
+window.restartAll = function(){
   currentCards=[...currentSet.cards];
   currentIndex=0;
   errors=[];
@@ -749,7 +749,7 @@ function restartAll(){
   showCard();
 }
 
-function restartErrors(){
+window.restartErrors = function(){
   if(errors.length===0){ alert("Aucune erreur à rejouer !"); return; }
   currentCards=[...errors];
   currentIndex=0;
